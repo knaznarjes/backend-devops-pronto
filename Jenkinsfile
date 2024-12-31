@@ -12,7 +12,7 @@ pipeline {
                 git branch: 'master',
                     url: 'https://github.com/knaznarjes/backend-devops-pronto',
             }
-        }
+
 
         stage('Build Image') {
             steps {
