@@ -1,53 +1,56 @@
 pipeline {
     agent any
-
-    environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
-        IMAGE_NAME = 'narjesknaz/spring-backend'
+    triggers {
+        pollSCM('H/5 * * * *')
     }
-
+    environment {
+           DOCKERHUB_CREDENTIALS = credentials('dockerhub')
+           IMAGE_NAME = 'narjesknaz/spring-backend'
+       }
     stages {
         stage('Checkout') {
-            steps {
-                git branch: 'master',
-                    url: 'https://github.com/knaznarjes/backend-devops-pronto'
-            }
-        }
-
-        stage('Build Image') {
+                   steps {
+                       git branch: 'master',
+                           url: 'https://github.com/knaznarjes/backend-devops-pronto'
+                   }
+               }
+        stage ( 'Build Server Image') {
             steps {
                 script {
-                    dockerImage = docker.build("${back_end-backend}")
+                    dockerImageServer = docker.build("${IMAGE_NAME_SERVER}")
                 }
             }
         }
-
-        stage('Scan Image') {
+        stage('Scan Server Image') {
             steps {
                 script {
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     sh """
-                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-                        aquasec/trivy:latest image --exit-code 0 --severity HIGH,CRITICAL \
-                        ${back_end-backend}
+                    docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                    aquasec/trivy:latest image --exit-code 0 --severity LOW,MEDIUM,HIGH,CRITICAL --timeout 5m \
+                    ${IMAGE_NAME_SERVER}
                     """
                 }
             }
+
+            }
         }
 
-        stage('Push to DockerHub') {
-            steps {
-                script {
-                    docker.withRegistry('', "${DOCKERHUB_CREDENTIALS}") {
-                        dockerImage.push()
+        stage('Push Images to Docker Hub') {
+                steps {
+                    script {
+                        docker.withRegistry('', "${DOCKERHUB_CREDENTIALS}") {
+                            dockerImageServer.push()
+                        }
                     }
                 }
-            }
         }
     }
 
+
     post {
         always {
-            sh 'docker system prune -f'
+            echo 'Cleaning up...'
         }
     }
 }
