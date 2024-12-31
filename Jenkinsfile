@@ -10,7 +10,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'master',
-                    url: 'https://github.com/knaznarjes/backend-devops-pronto',
+                    url: 'https://github.com/knaznarjes/backend-devops-pronto'
             }
 
 
