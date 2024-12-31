@@ -1,18 +1,21 @@
-FROM eclipse-temurin:17-jdk-alpine
+# Utilisez openjdk comme base d'image pour un environnement Java complet
+FROM openjdk:17-jdk-slim
 
 WORKDIR /app
 
-# Copy Maven configuration files
+# Copier les fichiers de configuration Maven
 COPY pom.xml .
 COPY mvnw .
 COPY .mvn .mvn
 
-# Copy source code
+# Copier le code source
 COPY src src
 
-# Package the application
+# Packager l'application
 RUN chmod +x mvnw && ./mvnw package -DskipTests
 
-# Run the application
+# Exposer le port de l'application
 EXPOSE 9090
+
+# Exécuter l'application
 ENTRYPOINT ["java", "-jar", "target/back_end-0.0.1-SNAPSHOT.jar"]
