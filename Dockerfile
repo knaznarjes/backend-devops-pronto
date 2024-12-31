@@ -11,8 +11,6 @@ COPY .mvn .mvn
 # Copier le code source
 COPY src src
 
-# Packager l'application
-RUN chmod +x mvnw && ./mvnw package -DskipTests
 
 # Exposer le port de l'application
 EXPOSE 9090
