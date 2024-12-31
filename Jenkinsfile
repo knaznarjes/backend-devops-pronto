@@ -11,7 +11,6 @@ pipeline {
             steps {
                 git branch: 'main',
                     url: 'https://github.com/knaznarjes/backend-devops-pronto',
-                    credentialsId: 'Gitlab_ssh'
             }
         }
 
