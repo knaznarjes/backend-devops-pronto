@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-backend-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spring-backend
+  template:
+    metadata:
+      labels:
+        app: spring-backend
+    spec:
+      containers:
+        - name: spring-backend
+          image: back_end-backend  # Assurez-vous que l'image existe et est correctement taguée
+          ports:
+            - containerPort: 9090  # Port exposé dans le container
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: mongodb://mongodb-service:27017/back_end  # Connexion à MongoDB
+            - name: ACCESS_TOKEN_SECRET
+              value: test  # Secret pour le token d'accès
+            - name: REFRESH_TOKEN_SECRET
+              value: test  # Secret pour le token de rafraîchissement
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-backend-service
+spec:
+  selector:
+    app: spring-backend
+  ports:
+    - protocol: TCP
+      port: 9091  # Port d'accès depuis l'extérieur du cluster
+      targetPort: 9090  # Port sur lequel l'application Spring Boot écoute dans le container
+  type: ClusterIP  # ClusterIP par défaut, expose uniquement le service au sein du cluster Kubernetes
