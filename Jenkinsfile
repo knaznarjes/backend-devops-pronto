@@ -18,11 +18,13 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            steps {
-                sh './mvnw clean package -DskipTests'
-            }
-        }
+      stage('Build Server Image') {
+                  steps {
+                      script {
+                          dockerImageServer = docker.build("${IMAGE_NAME}")
+                      }
+                  }
+              }
 
         stage('Build Server Image') {
             steps {
