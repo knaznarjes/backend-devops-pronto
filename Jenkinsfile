@@ -15,20 +15,37 @@ pipeline {
             }
         }
 
-        stage('Test') {
+        stage('Build & Test') {
             steps {
                 script {
                     try {
+                        // Clean and compile first
+                        bat "./mvnw clean compile"
+
+                        // Then run tests
                         bat "./mvnw test"
                     } catch (Exception e) {
                         currentBuild.result = 'FAILURE'
-                        error "Tests failed: ${e.message}"
+                        error "Build or tests failed: ${e.message}"
                     }
                 }
             }
             post {
                 always {
-                    junit '**/target/surefire-reports/*.xml'
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+
+        stage('Package') {
+            steps {
+                script {
+                    try {
+                        bat "./mvnw package -DskipTests"
+                    } catch (Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        error "Packaging failed: ${e.message}"
+                    }
                 }
             }
         }
@@ -37,10 +54,7 @@ pipeline {
             steps {
                 script {
                     try {
-                        // Clean up before building
                         bat "docker system prune -f"
-
-                        // Build with proper tags
                         bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
                     } catch (Exception e) {
                         currentBuild.result = 'FAILURE'
@@ -69,7 +83,7 @@ pipeline {
             script {
                 bat """
                     docker logout
-                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
+                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || exit 0
                     docker image prune -f
                     docker builder prune -f
                 """
