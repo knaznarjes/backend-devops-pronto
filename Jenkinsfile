@@ -15,12 +15,19 @@ pipeline {
             }
         }
 
+        stage('Build Application') {
+            steps {
+                // Use Maven wrapper on Windows
+                bat "./mvnw clean package -DskipTests"
+            }
+        }
+
         stage('Build Server Image') {
             steps {
                 script {
                     try {
                         // Clean up before building
-                        bat "docker system prune -f" // Change to sh if using Unix-based system
+                        bat "docker system prune -f"
 
                         // Build with proper tags
                         dockerImageServer = docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "--no-cache .")
@@ -34,12 +41,12 @@ pipeline {
         stage('Push Images to Docker Hub') {
             steps {
                 script {
-                    // Secure login with credentials
                     withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh '''
-                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        '''
+                        // Use bat for Windows
+                        bat """
+                            echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                            docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        """
                     }
                 }
             }
@@ -49,20 +56,19 @@ pipeline {
     post {
         always {
             script {
-                // Cleanup
                 bat """
                     docker logout
                     docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
                     docker image prune -f
                     docker builder prune -f
-                """ // Change to sh if using Unix-based system
+                """
                 cleanWs()
             }
         }
         failure {
             script {
                 echo 'Pipeline failed! Cleaning up...'
-                bat "docker system prune -f" // Change to sh if using Unix-based system
+                bat "docker system prune -f"
             }
         }
     }

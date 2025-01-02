@@ -1,19 +1,21 @@
-# Utilisez openjdk comme base d'image pour un environnement Java complet
-FROM openjdk:17-jdk-slim
-
+# Build stage
+FROM maven:3.8.4-openjdk-17-slim AS build
 WORKDIR /app
-
-# Copier les fichiers de configuration Maven
 COPY pom.xml .
 COPY mvnw .
 COPY .mvn .mvn
-
-# Copier le code source
 COPY src src
 
+# Package the application
+RUN mvn clean package -DskipTests
 
-# Exposer le port de l'application
+# Run stage
+FROM openjdk:17-jdk-slim
+WORKDIR /app
+COPY --from=build /app/target/back_end-0.0.1-SNAPSHOT.jar app.jar
+
+# Expose the port of the application
 EXPOSE 9090
 
-# Exécuter l'application
-ENTRYPOINT ["java", "-jar", "target/back_end-0.0.1-SNAPSHOT.jar"]
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
