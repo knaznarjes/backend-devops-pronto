@@ -18,16 +18,13 @@ pipeline {
             }
         }
 
-      stage('Build') {
-          tools {
-              jdk 'JDK17'
-          }
-          steps {
-              withMaven(maven: 'Maven3') {
-                  bat 'mvn clean package -DskipTests'
+      stage('Build Server Image') {
+                  steps {
+                      script {
+                          dockerImageServer = docker.build("${IMAGE_NAME}")
+                      }
+                  }
               }
-          }
-      }
         stage('Build Server Image') {
             steps {
                 script {
