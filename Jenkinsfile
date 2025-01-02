@@ -15,12 +15,7 @@ pipeline {
             }
         }
 
-        stage('Build Application') {
-            steps {
-                // Use Maven wrapper on Windows
-                bat "./mvnw clean package -DskipTests"
-            }
-        }
+
 
         stage('Build Server Image') {
             steps {
