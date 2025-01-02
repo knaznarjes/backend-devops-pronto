@@ -27,18 +27,18 @@ pipeline {
         }
 
         stage('Push Images to Docker Hub') {
-
-                      steps {
-                          withCredentials([usernamePassword(credentialsId: 'dockerhub',
-                                                            usernameVariable: 'DOCKER_USERNAME',
-                                                            passwordVariable: 'DOCKER_PASSWORD')]) {
-                              bat """
-                              echo ${DOCKER_PASSWORD} | docker login --username ${DOCKER_USERNAME} --password-stdin
-                              """
-                          }
-                      }
-                  }
-              }
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                                    usernameVariable: 'DOCKER_USERNAME',
+                                                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                        bat "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                        bat "docker push ${IMAGE_NAME}"
+                    }
+                }
+            }
+        }
+    }
 
     post {
         always {
