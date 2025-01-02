@@ -18,12 +18,16 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            steps {
-                bat 'mvnw.cmd clean package -DskipTests'
-            }
-        }
-
+      stage('Build') {
+          tools {
+              jdk 'JDK17'
+          }
+          steps {
+              withMaven(maven: 'Maven3') {
+                  bat 'mvn clean package -DskipTests'
+              }
+          }
+      }
         stage('Build Server Image') {
             steps {
                 script {
