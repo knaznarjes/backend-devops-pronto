@@ -22,9 +22,17 @@ pipeline {
                         // Clean and compile first
                         bat "./mvnw clean compile"
 
-                        // Then run tests
-                        bat "./mvnw test"
+                        // Run tests with detailed output
+                        bat "./mvnw test -X"
                     } catch (Exception e) {
+                        // Archive test reports even if tests fail
+                        junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+
+                        // Print test logs if available
+                        if (fileExists('target/surefire-reports')) {
+                            bat "type target\\surefire-reports\\*.txt"
+                        }
+
                         currentBuild.result = 'FAILURE'
                         error "Build or tests failed: ${e.message}"
                     }
@@ -33,11 +41,19 @@ pipeline {
             post {
                 always {
                     junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                    script {
+                        if (fileExists('target/surefire-reports')) {
+                            bat "type target\\surefire-reports\\*.txt"
+                        }
+                    }
                 }
             }
         }
 
         stage('Package') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
                 script {
                     try {
@@ -51,6 +67,9 @@ pipeline {
         }
 
         stage('Build Server Image') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
                 script {
                     try {
@@ -65,6 +84,9 @@ pipeline {
         }
 
         stage('Push Images to Docker Hub') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
