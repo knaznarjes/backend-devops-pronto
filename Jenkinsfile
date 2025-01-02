@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'Maven'
-        jdk 'JDK17'
-    }
-
     triggers {
         pollSCM('H/5 * * * *')
     }
@@ -25,7 +20,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                bat 'mvn clean package -DskipTests'
+                bat 'mvnw.cmd clean package -DskipTests'
             }
         }
 
