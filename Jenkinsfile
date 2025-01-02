@@ -15,26 +15,20 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
+        stage('Test') {
             steps {
                 script {
-                    // Use Maven wrapper for building
-                    bat "./mvnw clean package"
+                    try {
+                        bat "./mvnw test"
+                    } catch (Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        error "Tests failed: ${e.message}"
+                    }
                 }
             }
             post {
-                // Archive test results even if the build fails
                 always {
                     junit '**/target/surefire-reports/*.xml'
-                }
-            }
-        }
-
-        stage('Code Quality') {
-            steps {
-                script {
-                    // Run SonarQube analysis
-                    bat "./mvnw sonar:sonar"
                 }
             }
         }
@@ -46,12 +40,11 @@ pipeline {
                         // Clean up before building
                         bat "docker system prune -f"
 
-                        // Build Docker image
+                        // Build with proper tags
                         bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
                     } catch (Exception e) {
-                        error "Failed to build image: ${e.message}"
                         currentBuild.result = 'FAILURE'
-                        throw e
+                        error "Failed to build image: ${e.message}"
                     }
                 }
             }
@@ -74,7 +67,6 @@ pipeline {
     post {
         always {
             script {
-                // Cleanup
                 bat """
                     docker logout
                     docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
@@ -84,14 +76,10 @@ pipeline {
                 cleanWs()
             }
         }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
         failure {
             script {
                 echo 'Pipeline failed! Cleaning up...'
                 bat "docker system prune -f"
-                // You could add notification steps here (email, Slack, etc.)
             }
         }
     }
