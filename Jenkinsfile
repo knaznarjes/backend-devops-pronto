@@ -29,10 +29,10 @@ pipeline {
         stage('Push Images to Docker Hub') {
             steps {
                 script {
-                    sh """
-                    echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
-                    docker push ${IMAGE_NAME}
-                    """
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKERHUB_CREDENTIALS_USR', passwordVariable: 'DOCKERHUB_CREDENTIALS_PSW')]) {
+                        bat "docker login -u %DOCKERHUB_CREDENTIALS_USR% -p %DOCKERHUB_CREDENTIALS_PSW%"
+                        bat "docker push ${IMAGE_NAME}"
+                    }
                 }
             }
         }
