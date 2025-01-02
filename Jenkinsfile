@@ -18,13 +18,12 @@ pipeline {
             }
         }
 
-      stage('Build Server Image') {
-                  steps {
-                      script {
-                          dockerImageServer = docker.build("${IMAGE_NAME}")
-                      }
-                  }
-              }
+        stage('Build') {
+            steps {
+                sh './mvnw clean package -DskipTests'
+            }
+        }
+
         stage('Build Server Image') {
             steps {
                 script {
@@ -37,8 +36,10 @@ pipeline {
             steps {
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        bat """
-                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest image --exit-code 0 --severity LOW,MEDIUM,HIGH,CRITICAL --timeout 5m ${IMAGE_NAME}
+                        sh """
+                        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+                        aquasec/trivy:latest image --exit-code 0 --severity LOW,MEDIUM,HIGH,CRITICAL --timeout 5m \
+                        ${IMAGE_NAME}
                         """
                     }
                 }
@@ -50,6 +51,7 @@ pipeline {
                 script {
                     docker.withRegistry('', DOCKERHUB_CREDENTIALS) {
                         dockerImageServer.push()
+                        // Push with 'latest' tag
                         dockerImageServer.push('latest')
                     }
                 }
@@ -60,7 +62,8 @@ pipeline {
     post {
         always {
             script {
-                bat """
+                // Cleanup Docker images
+                sh """
                     docker rmi ${IMAGE_NAME} || true
                     docker image prune -f
                 """
