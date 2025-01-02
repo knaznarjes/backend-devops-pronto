@@ -1,8 +1,6 @@
 pipeline {
     agent any
 
-
-
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub')
         IMAGE_NAME = 'narjesknaz/spring-backend'
@@ -30,8 +28,17 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub',
                                                     usernameVariable: 'DOCKER_USERNAME',
                                                     passwordVariable: 'DOCKER_PASSWORD')]) {
-                        bat "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-                        bat "docker push ${IMAGE_NAME}"
+                        retry(3) {
+                            timeout(time: 10, unit: 'MINUTES') {
+                                bat "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                                bat """
+                                    docker push ${IMAGE_NAME} || (
+                                        docker system prune -f
+                                        docker push ${IMAGE_NAME}
+                                    )
+                                """
+                            }
+                        }
                     }
                 }
             }
