@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub')
         IMAGE_NAME = 'narjesknaz/spring-backend'
+        IMAGE_TAG = 'latest'
     }
 
     stages {
@@ -17,7 +18,15 @@ pipeline {
         stage('Build Server Image') {
             steps {
                 script {
-                    dockerImageServer = docker.build("${IMAGE_NAME}")
+                    try {
+                        // Clean up before building
+                        bat "docker system prune -f"
+
+                        // Build with proper tags
+                        dockerImageServer = docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "--no-cache .")
+                    } catch (Exception e) {
+                        error "Failed to build image: ${e.message}"
+                    }
                 }
             }
         }
@@ -29,12 +38,21 @@ pipeline {
                                                     usernameVariable: 'DOCKER_USERNAME',
                                                     passwordVariable: 'DOCKER_PASSWORD')]) {
                         retry(3) {
-                            timeout(time: 10, unit: 'MINUTES') {
-                                bat "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                            timeout(time: 15, unit: 'MINUTES') {
+                                // Login with retry mechanism
                                 bat """
-                                    docker push ${IMAGE_NAME} || (
+                                    docker logout
+                                    docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} || (
+                                        sleep 10
+                                        docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}
+                                    )
+                                """
+
+                                // Push with cleanup and retry
+                                bat """
+                                    docker push ${IMAGE_NAME}:${IMAGE_TAG} || (
                                         docker system prune -f
-                                        docker push ${IMAGE_NAME}
+                                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
                                     )
                                 """
                             }
@@ -48,11 +66,20 @@ pipeline {
     post {
         always {
             script {
+                // Cleanup
                 bat """
-                    docker rmi ${IMAGE_NAME} || true
+                    docker logout
+                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
                     docker image prune -f
+                    docker builder prune -f
                 """
                 cleanWs()
+            }
+        }
+        failure {
+            script {
+                echo 'Pipeline failed! Cleaning up...'
+                bat "docker system prune -f"
             }
         }
     }
