@@ -15,26 +15,20 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            steps {
-                bat './mvnw package -DskipTests'
-            }
-        }
 
-        stage('Docker Build') {
-            steps {
-                script {
-                    try {
-                        bat "docker system prune -f"
-                        bat "docker info"
-                        bat "docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} ."
-                        bat "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
-                    } catch (Exception e) {
-                        error "Docker build failed: ${e.message}"
-                    }
-                }
-            }
-        }
+       stage('Docker Build') {
+           steps {
+               script {
+                   try {
+                       // Remove --no-cache flag
+                       bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                       bat "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
+                   } catch (Exception e) {
+                       error "Docker build failed: ${e.message}"
+                   }
+               }
+           }
+       }
 
         stage('Docker Push') {
             steps {
