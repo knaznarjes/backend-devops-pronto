@@ -1,11 +1,8 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'JDK17'
-    }
-
     environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub')
         IMAGE_NAME = 'narjesknaz/spring-backend'
         IMAGE_TAG = 'latest'
     }
@@ -13,32 +10,91 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                cleanWs()
                 git branch: 'master',
                     url: 'https://github.com/knaznarjes/backend-devops-pronto'
             }
         }
 
-        stage('Build Maven') {
+        stage('Build & Test') {
             steps {
-                bat 'mvn clean package -DskipTests'
+                script {
+                    try {
+                        // Clean and compile first
+                        bat "./mvnw clean compile"
+
+                        // Run tests with detailed output
+                        bat "./mvnw test -X"
+                    } catch (Exception e) {
+                        // Archive test reports even if tests fail
+                        junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+
+                        // Print test logs if available
+                        if (fileExists('target/surefire-reports')) {
+                            bat "type target\\surefire-reports\\*.txt"
+                        }
+
+                        currentBuild.result = 'FAILURE'
+                        error "Build or tests failed: ${e.message}"
+                    }
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
+                    script {
+                        if (fileExists('target/surefire-reports')) {
+                            bat "type target\\surefire-reports\\*.txt"
+                        }
+                    }
+                }
             }
         }
 
-        stage('Build Docker') {
+        stage('Package') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
-                bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                script {
+                    try {
+                        bat "./mvnw package -DskipTests"
+                    } catch (Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        error "Packaging failed: ${e.message}"
+                    }
+                }
             }
         }
 
-        stage('Push Docker') {
+        stage('Build Server Image') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub',
-                                                usernameVariable: 'DOCKER_USERNAME',
-                                                passwordVariable: 'DOCKER_PASSWORD')]) {
-                    bat "docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%"
-                    bat "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
-                    bat "docker logout"
+                script {
+                    try {
+                        bat "docker system prune -f"
+                        bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
+                    } catch (Exception e) {
+                        currentBuild.result = 'FAILURE'
+                        error "Failed to build image: ${e.message}"
+                    }
+                }
+            }
+        }
+
+        stage('Push Images to Docker Hub') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        bat """
+                            echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
+                            docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                        """
+                    }
                 }
             }
         }
@@ -46,10 +102,21 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            script {
+                bat """
+                    docker logout
+                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || exit 0
+                    docker image prune -f
+                    docker builder prune -f
+                """
+                cleanWs()
+            }
         }
         failure {
-            bat 'docker system prune -f'
+            script {
+                echo 'Pipeline failed! Cleaning up...'
+                bat "docker system prune -f"
+            }
         }
     }
 }
