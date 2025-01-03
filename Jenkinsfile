@@ -17,7 +17,7 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh './mvnw package -DskipTests'
+                bat './mvnw package -DskipTests'
             }
         }
 
@@ -30,18 +30,18 @@ pipeline {
                             usernameVariable: 'DOCKER_USER',
                             passwordVariable: 'DOCKER_PASS'
                         )]) {
-                            sh """
-                                echo \${DOCKER_PASS} | docker login -u \${DOCKER_USER} --password-stdin
-                                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-                                docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
-                                docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                                docker push ${IMAGE_NAME}:latest
+                            bat """
+                                docker login -u %DOCKER_USER% -p %DOCKER_PASS%
+                                docker build -t %IMAGE_NAME%:%IMAGE_TAG% .
+                                docker tag %IMAGE_NAME%:%IMAGE_TAG% %IMAGE_NAME%:latest
+                                docker push %IMAGE_NAME%:%IMAGE_TAG%
+                                docker push %IMAGE_NAME%:latest
                             """
                         }
                     } catch (Exception e) {
                         error "Docker build/push failed: ${e.message}"
                     } finally {
-                        sh 'docker logout'
+                        bat 'docker logout'
                     }
                 }
             }
@@ -50,9 +50,9 @@ pipeline {
 
     post {
         always {
-            sh """
-                docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
-                docker rmi ${IMAGE_NAME}:latest || true
+            bat """
+                docker rmi %IMAGE_NAME%:%IMAGE_TAG% || true
+                docker rmi %IMAGE_NAME%:latest || true
                 docker system prune -f
             """
             cleanWs()
