@@ -21,7 +21,7 @@ pipeline {
             }
         }
 
-        stage('Docker Build & Push') {
+        stage('Docker Build') {
             steps {
                 script {
                     try {
@@ -31,6 +31,22 @@ pipeline {
                         // Vérification de Docker
                         bat 'docker info'
 
+                        // Build avec logs détaillés
+                        bat 'docker build --no-cache -t %IMAGE_NAME%:%IMAGE_TAG% .'
+
+                        // Tag latest
+                        bat 'docker tag %IMAGE_NAME%:%IMAGE_TAG% %IMAGE_NAME%:latest'
+                    } catch (Exception e) {
+                        error "Docker build failed: ${e.message}"
+                    }
+                }
+            }
+        }
+
+        stage('Docker Push') {
+            steps {
+                script {
+                    try {
                         withCredentials([usernamePassword(
                             credentialsId: 'dockerhub',
                             usernameVariable: 'DOCKER_USER',
@@ -39,25 +55,14 @@ pipeline {
                             // Login Docker
                             bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
 
-                            // Build avec logs détaillés
-                            bat 'docker build --no-cache -t %IMAGE_NAME%:%IMAGE_TAG% .'
-
-                            // Tag latest
-                            bat 'docker tag %IMAGE_NAME%:%IMAGE_TAG% %IMAGE_NAME%:latest'
-
                             // Push des images
                             bat '''
                                 docker push %IMAGE_NAME%:%IMAGE_TAG%
                                 docker push %IMAGE_NAME%:latest
                             '''
-
-                            // Vérification des images
-                            bat 'docker images | findstr %IMAGE_NAME%'
                         }
                     } catch (Exception e) {
-                        // Affichage des logs Docker en cas d'erreur
-                        bat 'docker logs $(docker ps -lq) || true'
-                        error "Docker build/push failed: ${e.message}"
+                        error "Docker push failed: ${e.message}"
                     } finally {
                         bat 'docker logout'
                     }
@@ -87,4 +92,3 @@ pipeline {
             bat 'docker ps -a'
         }
     }
-}
