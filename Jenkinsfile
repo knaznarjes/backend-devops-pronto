@@ -25,17 +25,10 @@ pipeline {
             steps {
                 script {
                     try {
-                        // Nettoyage préalable
-                        bat 'docker system prune -f'
-
-                        // Vérification de Docker
-                        bat 'docker info'
-
-                        // Build avec logs détaillés
-                        bat 'docker build --no-cache -t %IMAGE_NAME%:%IMAGE_TAG% .'
-
-                        // Tag latest
-                        bat 'docker tag %IMAGE_NAME%:%IMAGE_TAG% %IMAGE_NAME%:latest'
+                        bat "docker system prune -f"
+                        bat "docker info"
+                        bat "docker build --no-cache -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                        bat "docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest"
                     } catch (Exception e) {
                         error "Docker build failed: ${e.message}"
                     }
@@ -52,14 +45,11 @@ pipeline {
                             usernameVariable: 'DOCKER_USER',
                             passwordVariable: 'DOCKER_PASS'
                         )]) {
-                            // Login Docker
-                            bat 'docker login -u %DOCKER_USER% -p %DOCKER_PASS%'
-
-                            // Push des images
-                            bat '''
-                                docker push %IMAGE_NAME%:%IMAGE_TAG%
-                                docker push %IMAGE_NAME%:latest
-                            '''
+                            bat "docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}"
+                            bat """
+                                docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                                docker push ${IMAGE_NAME}:latest
+                            """
                         }
                     } catch (Exception e) {
                         error "Docker push failed: ${e.message}"
@@ -76,8 +66,8 @@ pipeline {
             script {
                 try {
                     bat """
-                        docker rmi %IMAGE_NAME%:%IMAGE_TAG% || exit 0
-                        docker rmi %IMAGE_NAME%:latest || exit 0
+                        docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || exit 0
+                        docker rmi ${IMAGE_NAME}:latest || exit 0
                         docker system prune -f || exit 0
                     """
                 } catch (Exception e) {
@@ -88,7 +78,8 @@ pipeline {
         }
         failure {
             echo "Pipeline failed! Checking Docker status..."
-            bat 'docker info'
-            bat 'docker ps -a'
+            bat "docker info"
+            bat "docker ps -a"
         }
     }
+}
