@@ -1,14 +1,13 @@
 pipeline {
     agent any
 
-    triggers {
-        pollSCM('* * * * *')
-    }
-
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub')
-        IMAGE_NAME_SERVER = 'narjesknaz/spring-backend-server'
-        IMAGE_NAME_CLIENT = 'narjesknaz/spring-backend-client'
+        IMAGE_NAME = 'narjesknaz/spring-backend'
+        IMAGE_TAG = 'latest'
+        MAVEN_OPTS = '-Dmaven.repo.local=.m2/repository -Dfile.encoding=UTF-8'
+        JAVA_HOME = tool 'JDK17'
+        PATH = "${JAVA_HOME}/bin:${PATH}"
     }
 
     stages {
@@ -17,45 +16,59 @@ pipeline {
                 cleanWs()
                 git branch: 'master',
                     url: 'https://github.com/knaznarjes/backend-devops-pronto'
-            }
-        }
 
-        stage('Build Server Image') {
-            steps {
-                dir('server') {
-                    script {
-                        dockerImageServer = docker.build("${IMAGE_NAME_SERVER}")
-                    }
+                script {
+                    bat 'mkdir -p .m2'
+                    bat 'chmod +x mvnw || true'
                 }
             }
         }
 
-        stage('Build Client Image') {
-            steps {
-                dir('client') {
-                    script {
-                        dockerImageClient = docker.build("${IMAGE_NAME_CLIENT}")
-                    }
-                }
-            }
-        }
-
-        stage('Test Docker Hub Login') {
-            steps {
-                sh '''
-                echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
-                '''
-            }
-        }
-
-        stage('Push Images to Docker Hub') {
+        stage('Build') {
             steps {
                 script {
-                    sh """
-                    echo "${DOCKERHUB_CREDENTIALS_PSW}" | docker login -u "${DOCKERHUB_CREDENTIALS_USR}" --password-stdin
-                    docker push ${IMAGE_NAME_SERVER}
-                    docker push ${IMAGE_NAME_CLIENT}
-                    """
+                    bat 'java -version'
+                    bat './mvnw -v'
+
+                    // Clean and compile
+                    bat './mvnw clean compile -e'
+                }
+            }
+        }
+
+        stage('Package') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
+            steps {
+                bat './mvnw package -DskipTests -e'
+            }
+        }
+
+        stage('Build Docker Image') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
+            steps {
+                script {
+                    bat 'docker system prune -f'
+                    bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            when {
+                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            }
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                                    usernameVariable: 'DOCKER_USERNAME',
+                                                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                        bat "echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin"
+                        bat "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                    }
                 }
             }
         }
@@ -64,9 +77,11 @@ pipeline {
     post {
         always {
             script {
-                sh '''
+                bat '''
                     docker logout
-                    docker system prune -f
+                    docker rmi %IMAGE_NAME%:%IMAGE_TAG% || exit 0
+                    docker image prune -f
+                    docker builder prune -f
                 '''
                 cleanWs()
             }
@@ -74,7 +89,7 @@ pipeline {
         failure {
             script {
                 echo 'Pipeline failed! Cleaning up...'
-                sh 'docker system prune -f'
+                bat 'docker system prune -f'
             }
         }
     }
