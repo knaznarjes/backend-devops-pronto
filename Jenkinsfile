@@ -17,6 +17,11 @@ pipeline {
                 cleanWs()
                 git branch: 'master',
                     url: 'https://github.com/knaznarjes/backend-devops-pronto'
+
+                script {
+                    sh 'mkdir -p server'
+                    sh 'mkdir -p client'
+                }
             }
         }
 
@@ -24,6 +29,9 @@ pipeline {
             steps {
                 dir('server') {
                     script {
+                        if (!fileExists('Dockerfile')) {
+                            error 'Dockerfile not found in server directory'
+                        }
                         dockerImageServer = docker.build("${IMAGE_NAME_SERVER}")
                     }
                 }
@@ -34,6 +42,9 @@ pipeline {
             steps {
                 dir('client') {
                     script {
+                        if (!fileExists('Dockerfile')) {
+                            error 'Dockerfile not found in client directory'
+                        }
                         dockerImageClient = docker.build("${IMAGE_NAME_CLIENT}")
                     }
                 }
