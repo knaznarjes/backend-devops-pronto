@@ -15,11 +15,6 @@ pipeline {
             }
         }
 
-        stage('Build') {
-            steps {
-                sh './mvnw package -DskipTests'
-            }
-        }
 
         stage('Docker Build & Push') {
             steps {
