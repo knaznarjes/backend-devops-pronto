@@ -95,6 +95,10 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
 		<!-- Mongock -->
 		<dependency>
 			<groupId>com.github.cloudyrock.mongock</groupId>
