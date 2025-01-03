@@ -14,12 +14,16 @@ pipeline {
         stage('Checkout') {
             steps {
                 cleanWs()
-                git branch: 'master',
-                    url: 'https://github.com/knaznarjes/backend-devops-pronto'
+                checkout scm
 
                 script {
-                    bat 'mkdir -p .m2'
-                    bat 'chmod +x mvnw || true'
+                    if (isUnix()) {
+                        sh 'mkdir -p .m2'
+                        sh 'chmod +x mvnw'
+                    } else {
+                        bat 'mkdir .m2 2>nul || exit 0'
+                        bat 'attrib -R mvnw'
+                    }
                 }
             }
         }
@@ -27,47 +31,59 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-                    bat 'java -version'
-                    bat './mvnw -v'
-
-                    // Clean and compile
-                    bat './mvnw clean compile -e'
+                    if (isUnix()) {
+                        sh 'java -version'
+                        sh './mvnw -v'
+                        sh './mvnw clean compile -e'
+                    } else {
+                        bat 'java -version'
+                        bat 'mvnw -v'
+                        bat 'mvnw clean compile -e'
+                    }
                 }
             }
         }
 
         stage('Package') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
-                bat './mvnw package -DskipTests -e'
+                script {
+                    if (isUnix()) {
+                        sh './mvnw package -DskipTests -e'
+                    } else {
+                        bat 'mvnw package -DskipTests -e'
+                    }
+                }
             }
         }
 
         stage('Build Docker Image') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
                 script {
-                    bat 'docker system prune -f'
-                    bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
+                    def dockerCmd = isUnix() ? 'docker' : 'docker'
+                    if (isUnix()) {
+                        sh "${dockerCmd} system prune -f"
+                        sh "${dockerCmd} build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
+                    } else {
+                        bat "${dockerCmd} system prune -f"
+                        bat "${dockerCmd} build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
+                    }
                 }
             }
         }
 
         stage('Push to Docker Hub') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'dockerhub',
                                                     usernameVariable: 'DOCKER_USERNAME',
                                                     passwordVariable: 'DOCKER_PASSWORD')]) {
-                        bat "echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin"
-                        bat "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                        if (isUnix()) {
+                            sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
+                            sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                        } else {
+                            bat "echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin"
+                            bat "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                        }
                     }
                 }
             }
@@ -77,19 +93,32 @@ pipeline {
     post {
         always {
             script {
-                bat '''
-                    docker logout
-                    docker rmi %IMAGE_NAME%:%IMAGE_TAG% || exit 0
-                    docker image prune -f
-                    docker builder prune -f
-                '''
+                if (isUnix()) {
+                    sh """
+                        docker logout
+                        docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true
+                        docker image prune -f
+                        docker builder prune -f
+                    """
+                } else {
+                    bat """
+                        docker logout
+                        docker rmi %IMAGE_NAME%:%IMAGE_TAG% || exit 0
+                        docker image prune -f
+                        docker builder prune -f
+                    """
+                }
                 cleanWs()
             }
         }
         failure {
             script {
                 echo 'Pipeline failed! Cleaning up...'
-                bat 'docker system prune -f'
+                if (isUnix()) {
+                    sh 'docker system prune -f'
+                } else {
+                    bat 'docker system prune -f'
+                }
             }
         }
     }
