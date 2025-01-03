@@ -38,9 +38,12 @@ spec:
               port: 9090
             failureThreshold: 30
             periodSeconds: 10
+            initialDelaySeconds: 15  # Add this to give more time for initial startup
+
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 9090
-            initialDelaySeconds: 30
+            initialDelaySeconds: 60  # Increase this
             periodSeconds: 10
+            failureThreshold: 5     # Add this to be more lenient
