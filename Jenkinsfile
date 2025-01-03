@@ -5,6 +5,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub')
         IMAGE_NAME = 'narjesknaz/spring-backend'
         IMAGE_TAG = 'latest'
+        MAVEN_OPTS = '-Dmaven.repo.local=.m2/repository'
     }
 
     stages {
@@ -12,6 +13,10 @@ pipeline {
             steps {
                 git branch: 'master',
                     url: 'https://github.com/knaznarjes/backend-devops-pronto'
+
+                // Ensure Maven wrapper has correct permissions
+                bat 'attrib -R mvnw'
+                bat 'attrib -R .mvn\\wrapper\\maven-wrapper.jar'
             }
         }
 
@@ -19,21 +24,29 @@ pipeline {
             steps {
                 script {
                     try {
-                        // Clean and compile first
-                        bat "./mvnw clean compile"
+                        // Clean local Maven repo
+                        bat 'if exist .m2 rmdir /s /q .m2'
+
+                        // Set JAVA_HOME explicitly if needed
+                        bat '''
+                            set JAVA_HOME=%JAVA_HOME_17%
+                            ./mvnw --version
+                            ./mvnw clean compile -e
+                        '''
 
                         // Run tests with detailed output
-                        bat "./mvnw test -X"
+                        bat '''
+                            set JAVA_HOME=%JAVA_HOME_17%
+                            ./mvnw test -e -Dtest.verbose=true
+                        '''
                     } catch (Exception e) {
-                        // Archive test reports even if tests fail
                         junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
 
-                        // Print test logs if available
                         if (fileExists('target/surefire-reports')) {
-                            bat "type target\\surefire-reports\\*.txt"
+                            bat 'dir target\\surefire-reports'
+                            bat 'type target\\surefire-reports\\*.txt'
                         }
 
-                        currentBuild.result = 'FAILURE'
                         error "Build or tests failed: ${e.message}"
                     }
                 }
@@ -41,59 +54,35 @@ pipeline {
             post {
                 always {
                     junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
-                    script {
-                        if (fileExists('target/surefire-reports')) {
-                            bat "type target\\surefire-reports\\*.txt"
-                        }
-                    }
                 }
             }
         }
 
         stage('Package') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
+            steps {
+                bat './mvnw package -DskipTests -e'
             }
+        }
+
+        stage('Build Docker Image') {
             steps {
                 script {
-                    try {
-                        bat "./mvnw package -DskipTests"
-                    } catch (Exception e) {
-                        currentBuild.result = 'FAILURE'
-                        error "Packaging failed: ${e.message}"
-                    }
+                    bat 'docker system prune -f'
+                    bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
                 }
             }
         }
 
-        stage('Build Server Image') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
+        stage('Push to Docker Hub') {
             steps {
                 script {
-                    try {
-                        bat "docker system prune -f"
-                        bat "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} --no-cache ."
-                    } catch (Exception e) {
-                        currentBuild.result = 'FAILURE'
-                        error "Failed to build image: ${e.message}"
-                    }
-                }
-            }
-        }
-
-        stage('Push Images to Docker Hub') {
-            when {
-                expression { currentBuild.resultIsBetterOrEqualTo('SUCCESS') }
-            }
-            steps {
-                script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        bat """
-                            echo %DOCKER_PASSWORD% | docker login -u %DOCKER_USERNAME% --password-stdin
-                            docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        """
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub',
+                                                    usernameVariable: 'DOCKER_USERNAME',
+                                                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                        bat '''
+                            docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%
+                            docker push %IMAGE_NAME%:%IMAGE_TAG%
+                        '''
                     }
                 }
             }
@@ -103,19 +92,19 @@ pipeline {
     post {
         always {
             script {
-                bat """
+                bat '''
                     docker logout
-                    docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || exit 0
+                    docker rmi %IMAGE_NAME%:%IMAGE_TAG% || exit 0
                     docker image prune -f
                     docker builder prune -f
-                """
+                '''
                 cleanWs()
             }
         }
         failure {
             script {
                 echo 'Pipeline failed! Cleaning up...'
-                bat "docker system prune -f"
+                bat 'docker system prune -f'
             }
         }
     }

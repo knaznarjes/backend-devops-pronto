@@ -8,6 +8,11 @@ services:
       - mongodb_data:/data/db
     networks:
       - spring-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: .
@@ -15,13 +20,20 @@ services:
     ports:
       - "9091:9090"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb_spring:27017/back_end
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/back_end
       - ACCESS_TOKEN_SECRET=test
       - REFRESH_TOKEN_SECRET=test
+      - SPRING_PROFILES_ACTIVE=prod
     networks:
       - spring-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   spring-network:

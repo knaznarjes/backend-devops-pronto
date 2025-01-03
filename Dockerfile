@@ -1,31 +1,31 @@
-FROM openjdk:17-jdk-slim AS builder
+FROM maven:3.8.4-openjdk-17-slim AS builder
 
 WORKDIR /app
 
-# Copier les fichiers de configuration Maven
+# Copy Maven configuration files
 COPY pom.xml .
 COPY mvnw .
 COPY .mvn .mvn
 
-# Copier le code source
+# Copy source code
 COPY src src
 
-# Donner les droits d'exécution au wrapper Maven
-RUN chmod +x mvnw
+# Build application
+RUN mvn clean package -DskipTests
 
-# Compiler l'application
-RUN ./mvnw clean package -DskipTests
-
-# Image finale
+# Final image
 FROM openjdk:17-jdk-slim
 
 WORKDIR /app
 
-# Copier uniquement le JAR de l'application depuis l'étape de build
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+# Copy JAR from builder stage
 COPY --from=builder /app/target/back_end-0.0.1-SNAPSHOT.jar .
 
-# Exposer le port de l'application
+# Expose application port
 EXPOSE 9090
 
-# Exécuter l'application
+# Run application
 ENTRYPOINT ["java", "-jar", "back_end-0.0.1-SNAPSHOT.jar"]
