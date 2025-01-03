@@ -23,12 +23,10 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
-
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
-
     private static final String[] AUTH_WHITELIST = {
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -66,34 +64,34 @@ public class WebSecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(Customizer.withDefaults());
-        http.csrf(csrf -> csrf.disable());
-        http.sessionManagement(sessionManager  -> sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-        http.exceptionHandling(exceptionHandling -> exceptionHandling.authenticationEntryPoint(
-                (request, response, exception) -> {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, exception.getMessage());
-                }));
+        http.cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sessionManager -> sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptionHandling -> exceptionHandling.authenticationEntryPoint(
+                        (request, response, exception) -> {
+                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, exception.getMessage());
+                        }));
+
+        // Configure security matchers with order of precedence
         http.authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
+                .requestMatchers("/actuator/**").permitAll()  // Permit all actuator endpoints without authentication
                 .requestMatchers(AUTH_WHITELIST).permitAll()
-                .requestMatchers(
-                        "/actuator/health",
-                        "/actuator/metrics",
-                        "/actuator/metrics/**",
-                        "/api/auth/**"
-                ).permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
                 .anyRequest().authenticated()
         );
 
-        http.addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class); // custom protocol Authorization
+        // Add the token filter
+        http.addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         final CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:4200"));
+        configuration.setAllowedOrigins(Arrays.asList("*"));  // Allow all origins for actuator endpoints
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowCredentials(false);  // Set to false when allowing all origins
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
 
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

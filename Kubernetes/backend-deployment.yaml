@@ -1,3 +1,4 @@
+# backend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -32,18 +33,33 @@ spec:
                   key: refresh-token-secret
             - name: SPRING_PROFILES_ACTIVE
               value: "prod"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
           startupProbe:
             httpGet:
               path: /actuator/health
               port: 9090
             failureThreshold: 30
-            periodSeconds: 10
-            initialDelaySeconds: 15  # Add this to give more time for initial startup
-
+            periodSeconds: 15
+            initialDelaySeconds: 60
+          
           livenessProbe:
             httpGet:
               path: /actuator/health
               port: 9090
-            initialDelaySeconds: 60  # Increase this
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9090
+            initialDelaySeconds: 45
             periodSeconds: 10
-            failureThreshold: 5     # Add this to be more lenient
+            failureThreshold: 3
