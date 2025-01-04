@@ -1,12 +1,15 @@
+# backend-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: backend-service
+  namespace: pronto
 spec:
-  type: LoadBalancer  # or NodePort depending on your needs
+  type: NodePort  # Changé de LoadBalancer à NodePort
   selector:
     app: spring-backend
   ports:
     - protocol: TCP
       port: 9091
       targetPort: 9090
+      nodePort: 30000  # Port accessible de l'extérieur

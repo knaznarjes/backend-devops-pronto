@@ -1,7 +1,9 @@
+# mongodb-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
   name: mongodb-service
+  namespace: pronto
 spec:
   selector:
     app: mongodb

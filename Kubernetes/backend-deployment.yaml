@@ -1,25 +1,25 @@
+# backend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spring-backend
+  namespace: pronto
 spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: spring-backend
   template:
+    metadata:
+      labels:
+        app: spring-backend
     spec:
       containers:
         - name: spring-backend
-          livenessProbe:
-            httpGet:
-              path: /actuator/health/liveness  # Changed from /actuator/health
-              port: 9090
-            initialDelaySeconds: 90
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /actuator/health/readiness  # Changed from /actuator/health
-              port: 9090
-            initialDelaySeconds: 60
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+          image: narjesknaz/spring-backend:latest
+          imagePullPolicy: Always
+          envFrom:                      # Ajout des variables d'environnement
+            - configMapRef:
+                name: backend-configmap
+      imagePullSecrets:
+        - name: regcred

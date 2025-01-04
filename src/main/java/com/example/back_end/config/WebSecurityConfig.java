@@ -3,10 +3,11 @@ package com.example.back_end.config;
 import com.example.back_end.security.AccessTokenEntryPoint;
 import com.example.back_end.security.AccessTokenFilter;
 import com.example.back_end.service.UserService;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -23,28 +24,20 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
     private static final String[] AUTH_WHITELIST = {
-            // Swagger UI
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/v2/api-docs",
-            "/swagger-resources",
             "/swagger-resources/**",
-            "/configuration/ui",
-            "/configuration/security",
             "/configuration/**",
             "/swagger-ui.html",
             "/webjars/**",
-            "/swagger/*/**",
-            // Actuator endpoints
-            "/actuator/**",
-            "/actuator/health/*",
-            "/actuator/health/readiness",
-            "/actuator/health/liveness"
+            "/api/auth/**"
     };
 
     @Autowired
@@ -68,29 +61,36 @@ public class WebSecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-        @Bean
-        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-            http.cors(Customizer.withDefaults())
-                    .csrf(csrf -> csrf.disable())
-                    .sessionManagement(sessionManager ->
-                            sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                    .exceptionHandling(exceptionHandling ->
-                            exceptionHandling.authenticationEntryPoint(accessTokenEntryPoint));
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/actuator/**")
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/actuator/**").permitAll()
+                )
+                .csrf(csrf -> csrf.disable());
+        return http.build();
+    }
 
-            // Configure security matchers with order of precedence
-            http.authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
-                    .requestMatchers(AUTH_WHITELIST).permitAll()
-                    .requestMatchers("/api/auth/**").permitAll()
-                    .anyRequest().authenticated()
-            );
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http.cors(Customizer.withDefaults())
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sessionManager ->
+                        sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptionHandling ->
+                        exceptionHandling.authenticationEntryPoint(accessTokenEntryPoint));
 
-            // Add the token filter AFTER the actuator endpoints
-            http.securityMatcher(request -> !request.getRequestURI().startsWith("/actuator/"))
-                    .addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+        http.authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
+                .requestMatchers(AUTH_WHITELIST).permitAll()
+                .anyRequest().authenticated()
+        );
 
-            return http.build();
-        }
+        http.addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
+        return http.build();
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
