@@ -1,65 +1,25 @@
-# backend-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: spring-backend
 spec:
-  selector:
-    matchLabels:
-      app: spring-backend
-  replicas: 1
   template:
-    metadata:
-      labels:
-        app: spring-backend
     spec:
       containers:
         - name: spring-backend
-          image: narjesknaz/spring-backend:latest
-          ports:
-            - containerPort: 9090
-          env:
-            - name: SPRING_DATA_MONGODB_URI
-              value: "mongodb://mongodb:27017/back_end"
-            - name: ACCESS_TOKEN_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: access-token-secret
-            - name: REFRESH_TOKEN_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: app-secrets
-                  key: refresh-token-secret
-            - name: SPRING_PROFILES_ACTIVE
-              value: "prod"
-          resources:
-            requests:
-              memory: "512Mi"
-              cpu: "250m"
-            limits:
-              memory: "1Gi"
-              cpu: "500m"
-          startupProbe:
-            httpGet:
-              path: /actuator/health
-              port: 9090
-            failureThreshold: 30
-            periodSeconds: 15
-            initialDelaySeconds: 60
-          
           livenessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/liveness  # Changed from /actuator/health
               port: 9090
             initialDelaySeconds: 90
-            periodSeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
-
           readinessProbe:
             httpGet:
-              path: /actuator/health
+              path: /actuator/health/readiness  # Changed from /actuator/health
               port: 9090
-            initialDelaySeconds: 45
+            initialDelaySeconds: 60
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3

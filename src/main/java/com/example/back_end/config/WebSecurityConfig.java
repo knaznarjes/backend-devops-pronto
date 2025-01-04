@@ -28,6 +28,7 @@ import java.util.Arrays;
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 public class WebSecurityConfig {
     private static final String[] AUTH_WHITELIST = {
+            // Swagger UI
             "/v3/api-docs/**",
             "/swagger-ui/**",
             "/v2/api-docs",
@@ -39,6 +40,11 @@ public class WebSecurityConfig {
             "/swagger-ui.html",
             "/webjars/**",
             "/swagger/*/**",
+            // Actuator endpoints
+            "/actuator/**",
+            "/actuator/health/*",
+            "/actuator/health/readiness",
+            "/actuator/health/liveness"
     };
 
     @Autowired
@@ -62,36 +68,36 @@ public class WebSecurityConfig {
         return authenticationConfiguration.getAuthenticationManager();
     }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(Customizer.withDefaults())
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sessionManager -> sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exceptionHandling -> exceptionHandling.authenticationEntryPoint(
-                        (request, response, exception) -> {
-                            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, exception.getMessage());
-                        }));
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+            http.cors(Customizer.withDefaults())
+                    .csrf(csrf -> csrf.disable())
+                    .sessionManagement(sessionManager ->
+                            sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                    .exceptionHandling(exceptionHandling ->
+                            exceptionHandling.authenticationEntryPoint(accessTokenEntryPoint));
 
-        // Configure security matchers with order of precedence
-        http.authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
-                .requestMatchers("/actuator/**").permitAll()  // Permit all actuator endpoints without authentication
-                .requestMatchers(AUTH_WHITELIST).permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
-                .anyRequest().authenticated()
-        );
+            // Configure security matchers with order of precedence
+            http.authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
+                    .requestMatchers(AUTH_WHITELIST).permitAll()
+                    .requestMatchers("/api/auth/**").permitAll()
+                    .anyRequest().authenticated()
+            );
 
-        // Add the token filter
-        http.addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+            // Add the token filter AFTER the actuator endpoints
+            http.securityMatcher(request -> !request.getRequestURI().startsWith("/actuator/"))
+                    .addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 
-        return http.build();
-    }
+            return http.build();
+        }
+
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         final CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));  // Allow all origins for actuator endpoints
+        configuration.setAllowedOrigins(Arrays.asList("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowCredentials(false);  // Set to false when allowing all origins
+        configuration.setAllowCredentials(false);
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
 
         final UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
