@@ -1,0 +1,6 @@
+# spring-boot-app/charts/mongodb/Chart.yaml
+apiVersion: v2
+name: mongodb
+description: MongoDB chart for Spring Boot Application
+version: 0.1.0
+type: application

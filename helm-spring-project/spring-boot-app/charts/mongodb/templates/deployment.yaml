@@ -1,0 +1,33 @@
+# spring-boot-app/charts/mongodb/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.mongodb.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.mongodb.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.mongodb.name }}
+    spec:
+      containers:
+        - name: {{ .Values.mongodb.name }}
+          image: "{{ .Values.mongodb.image.repository }}:{{ .Values.mongodb.image.tag }}"
+          ports:
+            - containerPort: {{ .Values.mongodb.service.port }}
+          envFrom:
+            - secretRef:
+                name: mongodb-secret
+          resources:
+            {{- toYaml .Values.mongodb.resources | nindent 12 }}
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+      volumes:
+        - name: mongodb-data
+          persistentVolumeClaim:
+            claimName: mongodb-pvc

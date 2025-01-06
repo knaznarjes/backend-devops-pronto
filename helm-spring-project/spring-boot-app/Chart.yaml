@@ -1,0 +1,10 @@
+# spring-boot-app/Chart.yaml
+apiVersion: v2
+name: spring-boot-app
+description: Helm chart for Spring Boot Application with MongoDB and JWT Security
+version: 0.1.0
+type: application
+dependencies:
+  - name: mongodb
+    version: 0.1.0
+    repository: file://charts/mongodb

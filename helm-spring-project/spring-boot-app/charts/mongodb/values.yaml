@@ -1,0 +1,22 @@
+# spring-boot-app/charts/mongodb/values.yaml
+mongodb:
+  name: mongodb
+  replicaCount: 1
+  image:
+    repository: mongo
+    tag: latest
+  service:
+    port: 27017
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  secrets:
+    MONGODB_ROOT_PASSWORD: "mongo-pass"
+    MONGODB_PASSWORD: "mongo-pass"

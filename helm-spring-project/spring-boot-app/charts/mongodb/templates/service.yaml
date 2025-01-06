@@ -1,0 +1,13 @@
+# spring-boot-app/charts/mongodb/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: {{ .Values.mongodb.name }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.mongodb.service.port }}
+      targetPort: {{ .Values.mongodb.service.port }}

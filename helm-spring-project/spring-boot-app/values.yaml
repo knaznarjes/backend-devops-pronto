@@ -1,0 +1,63 @@
+# spring-boot-app/values.yaml
+global:
+  namespace: prontoargocd
+
+backend:
+  name: spring-backend
+  replicaCount: 2
+  image:
+    repository: narjesknaz/spring-backend
+    tag: "165"
+    pullPolicy: Always
+  service:
+    type: NodePort
+    port: 9091
+    targetPort: 9090
+    nodePort: 30001
+  resources:
+    limits:
+      cpu: 500m
+      memory: 768Mi
+    requests:
+      cpu: 200m
+      memory: 512Mi
+  configMap:
+    SPRING_PROFILES_ACTIVE: "prod"
+    SPRING_DATA_MONGODB_URI: "mongodb://mongodb-service:27017/back_end"
+    SERVER_PORT: "9090"
+  secrets:
+    ACCESS_TOKEN_SECRET: "your-access-token-secret"
+    REFRESH_TOKEN_SECRET: "your-refresh-token-secret"
+
+mongodb:
+  name: mongodb
+  replicaCount: 1
+  image:
+    repository: mongo
+    tag: latest
+  service:
+    port: 27017
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  secrets:
+    MONGODB_ROOT_PASSWORD: "mongo-pass"
+    MONGODB_PASSWORD: "mongo-pass"
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "PUT, GET, POST, OPTIONS, DELETE"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization,Content-Type,*"
+  path: /api(/|$)(.*)

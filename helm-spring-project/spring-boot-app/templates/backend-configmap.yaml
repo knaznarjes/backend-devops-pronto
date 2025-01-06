@@ -1,0 +1,8 @@
+# spring-boot-app/templates/backend-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-backend-config
+  namespace: {{ .Values.global.namespace }}
+data:
+  {{- toYaml .Values.backend.configMap | nindent 2 }}
