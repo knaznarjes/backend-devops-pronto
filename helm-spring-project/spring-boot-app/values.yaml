@@ -43,9 +43,9 @@ mongodb:
   resources:
     limits:
       cpu: 500m
-      memory: 1Gi
+      memory: 768Mi
     requests:
-      cpu: 250m
+      cpu: 100m  # Lower this from 200m
       memory: 512Mi
   secrets:
     MONGODB_ROOT_PASSWORD: "mongo-pass"
