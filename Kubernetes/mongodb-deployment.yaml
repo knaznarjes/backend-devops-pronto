@@ -30,11 +30,11 @@ spec:
                 name: mongodb-secret
           resources:
             requests:
-              memory: "512Mi"
-              cpu: "250m"
+              cpu: 200m
+              memory: 128Mi
             limits:
-              memory: "1Gi"
-              cpu: "500m"
+              cpu: 400m
+              memory: 256Mi
           volumeMounts:
             - name: mongodb-data
               mountPath: /data/db
