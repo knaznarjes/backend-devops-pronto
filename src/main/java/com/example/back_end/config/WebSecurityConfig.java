@@ -60,7 +60,6 @@ public class WebSecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
-
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
@@ -69,7 +68,9 @@ public class WebSecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/**").permitAll()
                 )
-                .csrf(csrf -> csrf.disable());
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
         return http.build();
     }
 
@@ -79,13 +80,11 @@ public class WebSecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sessionManager ->
                         sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exceptionHandling ->
-                        exceptionHandling.authenticationEntryPoint(accessTokenEntryPoint));
-
-        http.authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
-                .requestMatchers(AUTH_WHITELIST).permitAll()
-                .anyRequest().authenticated()
-        );
+                .authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
+                        .requestMatchers(AUTH_WHITELIST).permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
+                        .anyRequest().authenticated()
+                );
 
         http.addFilterBefore(accessTokenFilter(), UsernamePasswordAuthenticationFilter.class);
 

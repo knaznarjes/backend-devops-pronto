@@ -5,16 +5,21 @@ metadata:
   namespace: monitoring
   labels:
     app: spring-backend
+    release: prometheus
 spec:
-  selector:
-    matchLabels:
-      app: spring-backend
   namespaceSelector:
     matchNames:
       - monitoring
+  selector:
+    matchLabels:
+      app: spring-backend
   endpoints:
     - port: http
-      targetPort: 8085
       path: /actuator/prometheus
       interval: 15s
-      scrapeTimeout: 10s
+      scrapeTimeout: 14s
+      scheme: http
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: 'jvm_.*|process_.*|http_.*|spring_.*|tomcat_.*|system_.*'
+          action: keep

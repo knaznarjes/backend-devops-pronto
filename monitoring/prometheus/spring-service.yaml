@@ -8,8 +8,8 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: 8085
-      targetPort: 8085
+    - port: 9090  # Correction du port
+      targetPort: 9090  # Correction du port
       name: http
   selector:
     app: spring-backend

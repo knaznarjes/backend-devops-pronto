@@ -1,0 +1,10 @@
+# spring-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-configmap
+  namespace: monitoring
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_DATA_MONGODB_URI: "mongodb://mongodb-service.pronto:27017/back_end"
+  SERVER_PORT: "9090"
