@@ -1,3 +1,4 @@
+# spring-deployment.yaml (version complète)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,7 +18,7 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/actuator/prometheus"
-        prometheus.io/port: "9090"
+        prometheus.io/port: "8086"
     spec:
       containers:
         - name: spring-backend
@@ -25,42 +26,19 @@ spec:
           ports:
             - containerPort: 9090
               name: http
+            - containerPort: 8086
+              name: metrics
           envFrom:
             - configMapRef:
                 name: backend-configmap
-          readinessProbe:
-            httpGet:
-              path: /actuator/health
-              port: 9090
-            initialDelaySeconds: 120
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
-          livenessProbe:
-            httpGet:
-              path: /actuator/health
-              port: 9090
-            initialDelaySeconds: 130
-            periodSeconds: 20
-            timeoutSeconds: 5
-            failureThreshold: 3
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "100m"
-            limits:
-              memory: "512Mi"
-              cpu: "200m"
           env:
+            - name: MANAGEMENT_SERVER_PORT
+              value: "8086"
             - name: MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE
               value: "*"
             - name: MANAGEMENT_ENDPOINTS_ENABLED_BY_DEFAULT
               value: "true"
-            - name: SPRING_SECURITY_ENABLED
-              value: "false"
             - name: MANAGEMENT_ENDPOINT_METRICS_ENABLED
               value: "true"
             - name: MANAGEMENT_METRICS_ENABLE_ALL
               value: "true"
-            - name: MANAGEMENT_ENDPOINTS_WEB_AUTHENTICATION_ENABLED
-              value: "false"
