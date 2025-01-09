@@ -6,8 +6,8 @@ COPY pom.xml .
 RUN mvn dependency:go-offline
 
 COPY src ./src
-# Add -Dfile.encoding=UTF-8 to fix the encoding issue
-RUN mvn clean package -DskipTests -Dfile.encoding=UTF-8
+# Skip resource filtering and use UTF-8 encoding
+RUN mvn clean package -DskipTests -Dfile.encoding=UTF-8 -Dmaven.resources.skip=false -Dmaven.resources.filtering=false
 
 # Run stage
 FROM eclipse-temurin:17-jre-alpine
