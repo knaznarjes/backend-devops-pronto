@@ -37,7 +37,9 @@ public class WebSecurityConfig {
             "/configuration/**",
             "/swagger-ui.html",
             "/webjars/**",
-            "/api/auth/**"
+            "/api/auth/**",
+            "/actuator/**",
+            "/actuator/prometheus/**"
     };
 
     @Autowired
@@ -60,6 +62,7 @@ public class WebSecurityConfig {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
     }
+
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
@@ -69,8 +72,11 @@ public class WebSecurityConfig {
                         .requestMatchers("/actuator/**").permitAll()
                 )
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .securityContext(securityContext -> securityContext.disable())
+                .anonymous(anonymous -> anonymous.disable());
         return http.build();
     }
 
@@ -82,7 +88,6 @@ public class WebSecurityConfig {
                         sessionManager.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorizeHttpRequest -> authorizeHttpRequest
                         .requestMatchers(AUTH_WHITELIST).permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 );
 

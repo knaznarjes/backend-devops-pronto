@@ -1,4 +1,3 @@
-# 2. prometheus-config.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,8 +12,14 @@ data:
     scrape_configs:
       - job_name: 'spring-backend'
         metrics_path: '/actuator/prometheus'
+        scrape_interval: 5s
+        scrape_timeout: 4s
+        scheme: http
         static_configs:
           - targets: ['spring-backend.monitoring.svc.cluster.local:8086']
+        tls_config:
+          insecure_skip_verify: true
+        follow_redirects: true
       
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
@@ -32,5 +37,3 @@ data:
             regex: ([^:]+)(?::\d+)?;(\d+)
             replacement: $1:$2
             target_label: __address__
-
----
