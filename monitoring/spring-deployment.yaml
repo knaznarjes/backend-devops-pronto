@@ -20,6 +20,7 @@ spec:
         prometheus.io/path: "/actuator/prometheus"
         prometheus.io/port: "8086"
     spec:
+      # spring-deployment.yaml
       containers:
         - name: spring-backend
           image: narjesknaz/spring-backend:165
@@ -28,6 +29,18 @@ spec:
               name: http
             - containerPort: 8086
               name: metrics
+          livenessProbe: # Corriger l'indentation ici
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8086
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe: # Corriger l'indentation ici
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8086
+            initialDelaySeconds: 60
+            periodSeconds: 10
           envFrom:
             - configMapRef:
                 name: backend-configmap

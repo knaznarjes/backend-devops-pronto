@@ -1,3 +1,4 @@
+# prometheus-config.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -16,10 +17,12 @@ data:
         scrape_timeout: 4s
         scheme: http
         static_configs:
-          - targets: ['spring-backend.monitoring.svc.cluster.local:8086']
-        tls_config:
-          insecure_skip_verify: true
-        follow_redirects: true
+      - targets: ['spring-backend.monitoring.svc.cluster.local:8086']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
       
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
